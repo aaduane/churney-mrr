@@ -44,27 +44,13 @@ const App = () => {
   
   useEffect(() => { 
     if (payments.data != undefined) {
-
-      for (let i = 0; i < payments.data.length; i++) {
-        const item = payments.data[i];
-        if (i === 0 || item[0] === "i9tlVXuPmPUBgIUMYQkMET1gT0wyQqlqLlQU0q3+1UU=") {
-          console.log(item);
-        }
-      }
-
+      console.log(payments.data);
     }
   }, [payments]);
 
   useEffect(() => { 
     if (users.data != undefined) {
-
-      for (let i = 0; i < users.data.length; i++) {
-        const item = users.data[i];
-        if (i === 0 || item[0] === "i9tlVXuPmPUBgIUMYQkMET1gT0wyQqlqLlQU0q3+1UU=") {
-          console.log(item);
-        }
-      }
-      
+      console.log(users.data);
     }
   }, [users]);
 

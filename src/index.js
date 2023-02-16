@@ -1,11 +1,15 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
+import { App } from './App';
 import './index.css';
+
+import Highcharts from 'highcharts/highstock';
+require('highcharts/modules/data')(Highcharts)
+require('highcharts/modules/boost')(Highcharts)
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
-    <App />
+	<App />
 );
 
 /* forces console clear on hot reload during development */

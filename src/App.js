@@ -6,15 +6,19 @@ import './App.css';
 
 // data
 import usersCSV from './data/users.csv';
-import paymentsCSV from './data/payments.csv';
+import paymentsCSV from './data/payments-sorted.csv';
 
 export const App = () => {
 
 	const [users, setUsers] = useState([]);
 	const [payments, setPayments] = useState([]);
 	const [dataLoaded, setDataLoaded] = useState(false)
+
+	const [foo, SetFoo] = useState(0);
 	
 	const loadData = () => {
+
+		console.log("Data is being loaded!");
 
 		// read users.csv, parse to json, and set state
 		const usersConfig = {
@@ -37,7 +41,10 @@ export const App = () => {
 				alert('Error while parsing CSV: ', error);
 			}
 		};	
+
+		console.time('Read Users CSV');
 		readString(usersCSV, usersConfig);
+		console.timeEnd('Read Users CSV');	
 
 		// read payments.csv, parse to json, and set state
 		const paymentsConfig = {
@@ -58,8 +65,10 @@ export const App = () => {
 				alert('Error while parsing CSV: ', error);
 			}
 		};
-		readString(paymentsCSV, paymentsConfig);
 
+		console.time('Read Payments CSV');
+		readString(paymentsCSV, paymentsConfig);
+		console.timeEnd('Read Payments CSV');	
 	}
 
 	useEffect(() => {
@@ -72,9 +81,20 @@ export const App = () => {
 		}
 	}, [users, payments]);
 
+
+	const test = () => {
+		const newPayments = [];
+		newPayments.data = [...payments.data];
+		newPayments.data.splice(0, 100000);
+		setPayments(newPayments);
+		//setPayments(payments);
+		SetFoo(foo + 1);
+	}
+
 	return (
 		<div>
-			{dataLoaded === false ? "Loading data..." : <PaymentsChart data={payments.data} />}
+			{dataLoaded === false ? "Loading data..." : <MRRChart payments={payments} foo={foo} />}
+			<button onClick={() => test()}>TEST</button>
 		</div>
 	);
 }
@@ -82,77 +102,11 @@ export const App = () => {
 
 
 
-export const PaymentsChart = (props) => {
+export const MRRChart = (props) => {
+
+	let testValue = props.foo;
 
 	const chartRef = useRef();
-
-	const [series, setSeries] = useState([]);
-
-	useEffect(() => {
-		const payments = [];
-		for (let i = 0; i < props.data.length - 1; i++) {
-			const data = props.data[i];		
-			payments.push([data.timestamp, data.value]);
-		}
-		payments.sort((a, b) => a[0] - b[0]);
-		setSeries(payments);
-	}, [props.data]);
-
-	useEffect(() => {
-		if (series.length > 0) {
-			setChartOptions({ 
-				series: [{
-					data: series
-				}],
-				plotOptions: {
-					series: {
-						events: {
-							click: handleSeriesClick
-						}
-					}
-				},
-			});
-		}	
-		
-	}, [series]);
-
-	const handleSeriesClick = (e) => {
-
-		const year = new Date(e.point.category).getFullYear();
-
-		const filteredData = [];
-		series.forEach(data => {
-			const dataYear = new Date(data[0]).getFullYear();
-			if ( dataYear === year) {
-				filteredData.push(data);
-			}
-		})
-
-		const start = Date.UTC(year, 0, 1);
-		const end = Date.UTC(year, 11, 31, 23, 59, 59);
-
-		console.log(new Date(start).toISOString());
-		console.log(new Date(end).toISOString());
-
-		setChartOptions({
-			xAxis: {
-				ordinal: true
-			},
-			plotOptions: {
-				series: {
-					dataGrouping: {
-						units: [['month', null]]
-					}
-				}
-			},
-			series: [{
-				data: filteredData
-			}],
-		});
-
-		chartRef.current.chart.xAxis[0].setExtremes(start, end);
-	}
-
 	const [chartOptions, setChartOptions] = useState({
 		title: {
 			text: "Monthly Recurring Revenue"
@@ -165,6 +119,7 @@ export const PaymentsChart = (props) => {
 		},
 		xAxis: {
 			type: "datetime",
+			ordinal: true,
 			title: {
 				text: "Time"
 			},
@@ -185,6 +140,74 @@ export const PaymentsChart = (props) => {
 			name: "Payments"
 		}]
 	});
+	
+
+	const handleSeriesClick = (event, series) => {
+
+		const year = new Date(event.point.category).getFullYear();
+
+		const filteredData = [];
+		series.forEach(data => {
+			const dataYear = new Date(data[0]).getFullYear();
+			if ( dataYear === year) {
+				filteredData.push(data);
+			}
+		})
+
+		const start = Date.UTC(year, 0, 1);
+		const end = Date.UTC(year, 11, 31, 23, 59, 59);
+
+		console.log(new Date(start).toISOString());
+		console.log(new Date(end).toISOString());
+
+		setChartOptions({
+			plotOptions: {
+				series: {
+					dataGrouping: {
+						units: [['month', null]]
+					}
+				}
+			},
+			series: [{
+				data: filteredData
+			}],
+		});
+
+		chartRef.current.chart.xAxis[0].setExtremes(start, end);
+	}
+
+	useEffect(() => {
+
+		console.time('Parse Time:');
+
+		const payments = [];
+		for (let i = 0; i < props.payments.data.length - 1; i++) {
+			const data = props.payments.data[i];		
+			payments.push([data.timestamp, data.value]);
+		}
+		
+		payments.sort((a, b) => a[0] - b[0]);
+
+		console.timeEnd('Parse Time:');
+
+		console.log(payments.length);
+
+		setChartOptions({ 
+			series: [{
+				data: payments
+			}],
+			plotOptions: {
+				series: {
+					events: {
+						click: function(e) {
+							handleSeriesClick(e, payments)
+						}
+					}
+				}
+			}
+		});
+
+	}, [props.payments]);
 
 	return (
 		<div>
@@ -193,14 +216,7 @@ export const PaymentsChart = (props) => {
 				options={chartOptions}
 				ref={chartRef}
 			/>
+			<div>{testValue}</div>
 		</div>
 	);
-}
-
-function usePrevious(value) {
-	const ref = useRef();
-	useEffect(() => {
-		ref.current = value; 
-	},[value]); 
-	return ref.current; 
 }

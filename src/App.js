@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { readString } from 'react-papaparse';
 import Highcharts from 'highcharts/highstock';
 import HighchartsReact from 'highcharts-react-official';
@@ -8,17 +8,19 @@ import './App.css';
 import usersCSV from './data/users.csv';
 import paymentsCSV from './data/payments-sorted.csv';
 
+/* ======================================= App ======================================= */
 export const App = () => {
 
 	const [users, setUsers] = useState([]);
 	const [payments, setPayments] = useState([]);
 	const [dataLoaded, setDataLoaded] = useState(false)
+	const [rangeFilter, setRangeFilter] = useState({ start: 0, end: 0 });
+	const [filteredPayments, setFilteredPayments] = useState([]);
+	const [filteredUsers, setFilteredUsers] = useState([]);
 
-	const [foo, SetFoo] = useState(0);
-	
 	const loadData = () => {
 
-		console.log("Data is being loaded!");
+		// console.log("Data is being loaded!"); // debugging
 
 		// read users.csv, parse to json, and set state
 		const usersConfig = {
@@ -26,7 +28,7 @@ export const App = () => {
 			complete: results => {
 				const json = [];
 				for (let i = 1; i < results.data.length; i++) {
-					const row = results.data[i];		
+					const row = results.data[i];
 					json.push({
 						"uid": row[0],
 						"country": row[1],
@@ -40,11 +42,11 @@ export const App = () => {
 			error: (error) => {
 				alert('Error while parsing CSV: ', error);
 			}
-		};	
+		};
 
-		console.time('Read Users CSV');
+		//console.time('Read Users CSV'); // debugging
 		readString(usersCSV, usersConfig);
-		console.timeEnd('Read Users CSV');	
+		//console.timeEnd('Read Users CSV'); // debugging
 
 		// read payments.csv, parse to json, and set state
 		const paymentsConfig = {
@@ -52,7 +54,7 @@ export const App = () => {
 			complete: results => {
 				const json = [];
 				for (let i = 1; i < results.data.length; i++) {
-					const row = results.data[i];		
+					const row = results.data[i];
 					json.push({
 						"uid": row[0],
 						"timestamp": Date.parse(row[1]),
@@ -66,47 +68,134 @@ export const App = () => {
 			}
 		};
 
-		console.time('Read Payments CSV');
+		// console.time('Read Payments CSV'); // debugging
 		readString(paymentsCSV, paymentsConfig);
-		console.timeEnd('Read Payments CSV');	
+		// console.timeEnd('Read Payments CSV'); // debugging
 	}
 
+	// read CSV data into JSON object and set state
 	useEffect(() => {
 		loadData();
 	}, []);
 
-	useEffect(() => {	
+	// set dataLoaded state to true when data is fully loaded
+	useEffect(() => {
 		if (users.data !== undefined && payments.data !== undefined) {
+			setFilteredPayments(payments);
+			setFilteredUsers(users);
 			setDataLoaded(true);
 		}
 	}, [users, payments]);
 
+	useEffect(() => {
+		if (rangeFilter.start !== 0 && rangeFilter.end !== 0) {
 
-	const test = () => {
-		const newPayments = [];
-		newPayments.data = [...payments.data];
-		newPayments.data.splice(0, 100000);
-		setPayments(newPayments);
-		//setPayments(payments);
-		SetFoo(foo + 1);
+			// console.log("FILTER S: " + new Date(rangeFilter.start).toUTCString()); // debugging
+			// console.log("FILTER E: " + new Date(rangeFilter.end).toUTCString()); // debugging
+
+			// filter payments by start and end time
+			const filteredUsersIndex = new Set();
+			const filteredPayments = [];
+			filteredPayments.data = [];
+			for (let i = 0; i < payments.data.length; i++) {
+				const payment = payments.data[i];
+				if (payment.timestamp > rangeFilter.start && payment.timestamp < rangeFilter.end) {
+					filteredPayments.data.push(payment);
+					filteredUsersIndex.add(payment.uid);
+				}
+			}
+
+			// filter users by what payments are filtered
+			const filteredUsers = [];
+			filteredUsers.data =[];
+			for (let i = 0; i < users.data.length; i++) {
+				const user = users.data[i];
+				if (filteredUsersIndex.has(user.uid)) {
+					filteredUsers.data.push(user);
+				}
+			}
+
+			// set new states
+			setFilteredUsers(filteredUsers);
+			setFilteredPayments(filteredPayments); // need to sort payments by timestamp before setting ? 
+		}
+	}, [rangeFilter, payments, users]);
+
+	const rollUp = () => {
+		if (rangeFilter.start !== 0 && rangeFilter.end !== 0) { 
+
+			const startMonth = new Date(rangeFilter.start).getUTCMonth();
+			const endMonth = new Date(rangeFilter.end).getUTCMonth();
+
+			if (startMonth === endMonth) {
+
+				const year = new Date(rangeFilter.start).getUTCFullYear();
+				const start = Date.UTC(year, 0, 1);
+				const end = Date.UTC(year, 11, 31, 23, 59, 59);
+	
+				console.log(new Date(start).toUTCString());
+				console.log(new Date(end).toUTCString());
+	
+	
+				const filteredUsersIndex = new Set();
+				const filteredPayments = [];
+				filteredPayments.data = [];
+				for (let i = 0; i < payments.data.length; i++) {
+					const payment = payments.data[i];
+					if (payment.timestamp > start && payment.timestamp < end) {
+						filteredPayments.data.push(payment);
+						filteredUsersIndex.add(payment.uid);
+					}
+				}
+	
+				// filter payments by start and end time
+				const filteredUsers = [];
+				filteredUsers.data =[];
+				for (let i = 0; i < users.data.length; i++) {
+					const user = users.data[i];
+					if (filteredUsersIndex.has(user.uid)) {
+						filteredUsers.data.push(user);
+					}
+				}
+
+				setFilteredUsers(filteredUsers);
+				setFilteredPayments(filteredPayments); 
+				setRangeFilter({ start: start, end: end });
+			}
+			else {
+				setFilteredUsers(users);
+				setFilteredPayments(payments); 
+			}
+		}		
 	}
 
 	return (
 		<div>
-			{dataLoaded === false ? "Loading data..." : <MRRChart payments={payments} foo={foo} />}
-			<button onClick={() => test()}>TEST</button>
+			<div>
+				{dataLoaded ? null : "Loading data..."}
+			</div>
+
+			<div>
+				<button onClick={() => rollUp()}>BACK</button>
+			</div>
+
+			<div>
+				<MRRChart payments={filteredPayments} setRangeFilter={setRangeFilter} />
+			</div>
+
+			<div>
+				<PieChart users={filteredUsers} />
+			</div>
+
 		</div>
-	);
+	)
 }
 
-
-
-
+/* ======================================= MRRChart ======================================= */
 export const MRRChart = (props) => {
 
-	let testValue = props.foo;
-
 	const chartRef = useRef();
+
 	const [chartOptions, setChartOptions] = useState({
 		title: {
 			text: "Monthly Recurring Revenue"
@@ -127,87 +216,178 @@ export const MRRChart = (props) => {
 		plotOptions: {
 			series: {
 				boostThreshold: 1,
+				turboThreshold: 1,
 				dataGrouping: {
 					enabled: true,
 					forced: true,
 					units: [['year', null]]
-				}
+				},
 			}
 		},
 		series: [{
 			type: 'column',
 			cursor: 'pointer',
-			name: "Payments"
+			name: "Revenue"
 		}]
 	});
-	
 
-	const handleSeriesClick = (event, series) => {
+	const handleSeriesClick = useCallback((event, unitGrouping) => {
+		if (unitGrouping !== "day") {
+			const year = new Date(event.point.category).getUTCFullYear();
+			const month = new Date(event.point.category).getUTCMonth();
 
-		const year = new Date(event.point.category).getFullYear();
-
-		const filteredData = [];
-		series.forEach(data => {
-			const dataYear = new Date(data[0]).getFullYear();
-			if ( dataYear === year) {
-				filteredData.push(data);
+			let start;
+			let end;
+			if (unitGrouping === "year") {
+				start = Date.UTC(year, 0, 1);
+				end = Date.UTC(year, 11, 31, 23, 59, 59);
 			}
-		})
 
-		const start = Date.UTC(year, 0, 1);
-		const end = Date.UTC(year, 11, 31, 23, 59, 59);
+			if (unitGrouping === "month") {
+				start = Date.UTC(year, month, 1);
+				end = Date.UTC(year, month + 1, 0, 23, 59, 59);
+			}
 
-		console.log(new Date(start).toISOString());
-		console.log(new Date(end).toISOString());
-
-		setChartOptions({
-			plotOptions: {
-				series: {
-					dataGrouping: {
-						units: [['month', null]]
-					}
-				}
-			},
-			series: [{
-				data: filteredData
-			}],
-		});
-
-		chartRef.current.chart.xAxis[0].setExtremes(start, end);
-	}
+			props.setRangeFilter({ start: start, end: end });
+		}
+	}, [props]);
 
 	useEffect(() => {
 
-		console.time('Parse Time:');
-
-		const payments = [];
-		for (let i = 0; i < props.payments.data.length - 1; i++) {
-			const data = props.payments.data[i];		
-			payments.push([data.timestamp, data.value]);
+		// console.time('Parse Time:'); // debugging
+		const series = [];
+		if (props.payments.data) {
+			for (let i = 0; i < props.payments.data.length; i++) {
+				const data = props.payments.data[i];
+				series.push([data.timestamp, data.value]);
+			}
 		}
-		
-		payments.sort((a, b) => a[0] - b[0]);
+		// console.timeEnd('Parse Time:'); // debugging
 
-		console.timeEnd('Parse Time:');
+		// detect unit for data grouping
+		let unitGrouping = "year";
+		if (series[0] !== undefined) {	
+			const firstTimestampYear = new Date(series[0][0]).getUTCFullYear();
+			const lastTimestampYear = new Date(series[series.length - 1][0]).getUTCFullYear();
+			if (firstTimestampYear === lastTimestampYear) {
+				unitGrouping = "month";
+				const firstTimestampMonth = new Date(series[0][0]).getUTCMonth();
+				const lastTimestampMonth = new Date(series[series.length - 1][0]).getUTCMonth();
+				if (firstTimestampMonth === lastTimestampMonth) {
+					unitGrouping = "day";
+				}
+			}
+		}
 
-		console.log(payments.length);
-
-		setChartOptions({ 
+		setChartOptions({
 			series: [{
-				data: payments
+				data: series
 			}],
 			plotOptions: {
 				series: {
 					events: {
-						click: function(e) {
-							handleSeriesClick(e, payments)
+						click: function (e) {
+							handleSeriesClick(e, unitGrouping)
 						}
+					},
+					dataGrouping: {
+						units: [[unitGrouping, null]]
 					}
 				}
 			}
 		});
 
-	}, [props.payments]);
+	}, [props.payments, handleSeriesClick]);
+
+
+	/*
+	let toShow = false;
+	if (chartOptions.series[0].data !== undefined) {
+		toShow = true;
+	}
+	*/
+
+	return (
+		// className={toShow ? null : "hide"}
+		<div>
+			<HighchartsReact
+				highcharts={Highcharts}
+				options={chartOptions}
+				ref={chartRef}
+			/>
+		</div>
+	);
+
+	
+}
+
+/* ======================================= PieChart ======================================= */
+export const PieChart = (props) => {
+
+	const chartRef = useRef();
+	const [chartOptions, setChartOptions] = useState({
+		chart: {
+			type: 'pie',
+		},
+		title: {
+			text: ''
+		},
+		credits: {
+			enabled: false
+		},
+		accessibility: {
+			enabled: false
+		},
+		tooltip: {
+			pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>'
+		},
+		plotOptions: {
+			pie: {
+				cursor: 'pointer',
+				dataLabels: {
+					enabled: true,
+					format: '<b>{point.name}</b>: {point.percentage:.1f} %'
+				}
+			},
+			series: {
+				animation: {
+					//defer: 2000
+				}
+			}
+		}
+	});
+
+	const category = "country";
+
+	useEffect(() => {
+		if (props.users.data) {
+			const categories = new Set();
+			const data = [];
+			for (let i = 0; i < props.users.data.length; i++) {
+				const item = props.users.data[i];
+				if (!categories.has(item[category])) {
+					categories.add(item[category]);
+					data.push({
+						name: item[category],
+						y: 1,
+					});
+				} 
+				else {
+					for (let j = 0; j < data.length; j++) {
+						if (data[j].name === item[category]) {
+							data[j].y++;
+							break;
+						}
+					}
+				}
+			}
+			setChartOptions({
+				series: [{
+					data: data
+				}]
+			});
+		}
+	}, [props.users]);
 
 	return (
 		<div>
@@ -216,7 +396,7 @@ export const MRRChart = (props) => {
 				options={chartOptions}
 				ref={chartRef}
 			/>
-			<div>{testValue}</div>
 		</div>
 	);
+
 }

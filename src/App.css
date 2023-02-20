@@ -1,0 +1,33 @@
+/******* APP *******/
+#appWrapper {
+    width: 90%;
+    margin: 0 auto 0 auto;
+    padding: 0;
+    background-color: #fafafa;
+}
+
+/******* LINE *******/
+#mmrWrapper {
+    width: 100%;
+    border: 1px solid lightgrey;
+    box-sizing: border-box;
+    margin: 20px auto 20px auto;
+    background-color: white;
+    box-shadow: 0px 3px 3px lightgrey;
+}
+
+/******* PIE *******/
+#pieChartsWrapper {
+    width: 100%;
+    margin: 0 auto 40px auto;
+    text-align: center;
+    background-color: white;
+    border: 1px solid lightgrey;
+    box-shadow: 0px 3px 3px lightgrey; 
+}
+.pieChart {
+    width: 25%;
+    box-sizing: border-box;
+    display: inline-block;
+    margin: 0;
+} 

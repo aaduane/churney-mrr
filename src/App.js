@@ -8,6 +8,13 @@ import './App.css';
 import usersCSV from './data/users.csv';
 import paymentsCSV from './data/payments-sorted.csv';
 
+Highcharts.setOptions({
+	//colors: ['#058DC7', '#50B432', '#ED561B', '#DDDF00', '#24CBE5', '#64E572', '#FF9655', '#FFF263', '#6AF9C4'],
+	lang: {
+		thousandsSep: ','
+	}
+});
+
 /* ======================================= App ======================================= */
 export const App = () => {
 
@@ -17,6 +24,7 @@ export const App = () => {
 	const [rangeFilter, setRangeFilter] = useState({ start: 0, end: 0 });
 	const [filteredPayments, setFilteredPayments] = useState([]);
 	const [filteredUsers, setFilteredUsers] = useState([]);
+	const [categories, setCategories] = useState([]);
 
 	const loadData = () => {
 
@@ -26,15 +34,18 @@ export const App = () => {
 		const usersConfig = {
 			download: true,
 			complete: results => {
+				const categories = results.data[0];
+				categories.shift();
+				setCategories(categories);
 				const json = [];
 				for (let i = 1; i < results.data.length; i++) {
 					const row = results.data[i];
 					json.push({
 						"uid": row[0],
 						"country": row[1],
-						"ageGroup": row[2],
-						"productCategory": row[3],
-						"subscriptionFrequency": parseInt(row[4]),
+						"age_group": row[2],
+						"product_category": row[3],
+						"subscription_frequency": parseInt(row[4]),
 					})
 				}
 				setUsers({ data: json });
@@ -75,6 +86,7 @@ export const App = () => {
 
 	// read CSV data into JSON object and set state
 	useEffect(() => {
+		document.title = "Churney Assignment";
 		loadData();
 	}, []);
 
@@ -87,6 +99,7 @@ export const App = () => {
 		}
 	}, [users, payments]);
 
+	// filter between start and end time for charts
 	useEffect(() => {
 		if (rangeFilter.start !== 0 && rangeFilter.end !== 0) {
 
@@ -107,7 +120,7 @@ export const App = () => {
 
 			// filter users by what payments are filtered
 			const filteredUsers = [];
-			filteredUsers.data =[];
+			filteredUsers.data = [];
 			for (let i = 0; i < users.data.length; i++) {
 				const user = users.data[i];
 				if (filteredUsersIndex.has(user.uid)) {
@@ -121,8 +134,9 @@ export const App = () => {
 		}
 	}, [rangeFilter, payments, users]);
 
+	// roll up after a drilldown 
 	const rollUp = () => {
-		if (rangeFilter.start !== 0 && rangeFilter.end !== 0) { 
+		if (rangeFilter.start !== 0 && rangeFilter.end !== 0) {
 
 			const startMonth = new Date(rangeFilter.start).getUTCMonth();
 			const endMonth = new Date(rangeFilter.end).getUTCMonth();
@@ -132,11 +146,11 @@ export const App = () => {
 				const year = new Date(rangeFilter.start).getUTCFullYear();
 				const start = Date.UTC(year, 0, 1);
 				const end = Date.UTC(year, 11, 31, 23, 59, 59);
-	
+
 				console.log(new Date(start).toUTCString());
 				console.log(new Date(end).toUTCString());
-	
-	
+
+
 				const filteredUsersIndex = new Set();
 				const filteredPayments = [];
 				filteredPayments.data = [];
@@ -147,10 +161,10 @@ export const App = () => {
 						filteredUsersIndex.add(payment.uid);
 					}
 				}
-	
+
 				// filter payments by start and end time
 				const filteredUsers = [];
-				filteredUsers.data =[];
+				filteredUsers.data = [];
 				for (let i = 0; i < users.data.length; i++) {
 					const user = users.data[i];
 					if (filteredUsersIndex.has(user.uid)) {
@@ -159,18 +173,19 @@ export const App = () => {
 				}
 
 				setFilteredUsers(filteredUsers);
-				setFilteredPayments(filteredPayments); 
+				setFilteredPayments(filteredPayments);
 				setRangeFilter({ start: start, end: end });
 			}
 			else {
 				setFilteredUsers(users);
-				setFilteredPayments(payments); 
+				setFilteredPayments(payments);
 			}
-		}		
+		}
 	}
 
 	return (
-		<div>
+		<div id="appWrapper">
+
 			<div>
 				{dataLoaded ? null : "Loading data..."}
 			</div>
@@ -179,14 +194,22 @@ export const App = () => {
 				<button onClick={() => rollUp()}>BACK</button>
 			</div>
 
-			<div>
-				<MRRChart payments={filteredPayments} setRangeFilter={setRangeFilter} />
+			<div id="mmrWrapper">
+				<MRRChart
+					payments={filteredPayments}
+					setRangeFilter={setRangeFilter}
+				/>
 			</div>
 
-			<div>
-				<PieChart users={filteredUsers} />
+			<div id="pieChartsWrapper">
+				{categories.map(category => (
+					<PieChart
+						key={category}
+						users={filteredUsers}
+						category={category}
+					/>
+				))}
 			</div>
-
 		</div>
 	)
 }
@@ -197,8 +220,14 @@ export const MRRChart = (props) => {
 	const chartRef = useRef();
 
 	const [chartOptions, setChartOptions] = useState({
+		chart: {
+			height: 600
+		},
 		title: {
-			text: "Monthly Recurring Revenue"
+			text: "Monthly Recurring Revenue",
+		},
+		subtitle: {
+			text: "Click a data point to drilldown."
 		},
 		credits: {
 			enabled: false
@@ -213,6 +242,33 @@ export const MRRChart = (props) => {
 				text: "Time"
 			},
 		},
+		yAxis: [{ // Primary yAxis
+			labels: {
+
+			},
+			title: {
+				text: 'Dollars ($)'
+			}
+		}, { // Secondary yAxis
+			title: {
+				text: 'Dollars ($)',
+				style: {
+					color: '#3498db',
+				}
+			},
+			labels: {
+				style: {
+					color: '#3498db'
+				}
+			},
+			opposite: true
+		}],
+		tooltip: {
+			shared: true,
+			valueDecimals: 0,
+			valuePrefix: '$',
+			//valuePrefix: 'USD',
+		},
 		plotOptions: {
 			series: {
 				boostThreshold: 1,
@@ -223,12 +279,7 @@ export const MRRChart = (props) => {
 					units: [['year', null]]
 				},
 			}
-		},
-		series: [{
-			type: 'column',
-			cursor: 'pointer',
-			name: "Revenue"
-		}]
+		}
 	});
 
 	const handleSeriesClick = useCallback((event, unitGrouping) => {
@@ -256,17 +307,31 @@ export const MRRChart = (props) => {
 
 		// console.time('Parse Time:'); // debugging
 		const series = [];
+		const churney = [];
+		const difference = [];
 		if (props.payments.data) {
 			for (let i = 0; i < props.payments.data.length; i++) {
+
+				// real payment series 
 				const data = props.payments.data[i];
 				series.push([data.timestamp, data.value]);
+
+				// churney series creation
+				const modifier = Math.floor(Math.random() * (8 - 5 + 1) + 5)
+				const modified = data.value * ((100 + modifier) / 100);
+				const rounded = Number(modified.toFixed(2));
+				churney.push([data.timestamp, rounded]);
+
+				// different series creation
+				const differencePayment = Number((rounded - data.value).toFixed(2));
+				difference.push([data.timestamp, differencePayment]);
 			}
 		}
 		// console.timeEnd('Parse Time:'); // debugging
 
 		// detect unit for data grouping
 		let unitGrouping = "year";
-		if (series[0] !== undefined) {	
+		if (series[0] !== undefined) {
 			const firstTimestampYear = new Date(series[0][0]).getUTCFullYear();
 			const lastTimestampYear = new Date(series[series.length - 1][0]).getUTCFullYear();
 			if (firstTimestampYear === lastTimestampYear) {
@@ -281,7 +346,29 @@ export const MRRChart = (props) => {
 
 		setChartOptions({
 			series: [{
-				data: series
+				name: "Original",
+				data: series,
+				type: 'column',
+				color: '#00000',
+				cursor: 'pointer'
+			},
+			{
+				name: "Churney",
+				data: churney,
+				type: 'column',
+				cursor: 'pointer',
+				color: '#9bfa91'
+			},
+			{
+				name: "Increase",
+				data: difference,
+				type: 'spline',
+				cursor: 'pointer',
+				yAxis: 1,
+				color: '#3498db',
+				dataGrouping: {
+					approximation: "sum"
+				}
 			}],
 			plotOptions: {
 				series: {
@@ -291,7 +378,8 @@ export const MRRChart = (props) => {
 						}
 					},
 					dataGrouping: {
-						units: [[unitGrouping, null]]
+						units: [[unitGrouping, null]],
+						forced: true
 					}
 				}
 			}
@@ -309,7 +397,7 @@ export const MRRChart = (props) => {
 
 	return (
 		// className={toShow ? null : "hide"}
-		<div>
+		<div className="mmrChart">
 			<HighchartsReact
 				highcharts={Highcharts}
 				options={chartOptions}
@@ -318,7 +406,7 @@ export const MRRChart = (props) => {
 		</div>
 	);
 
-	
+
 }
 
 /* ======================================= PieChart ======================================= */
@@ -343,7 +431,7 @@ export const PieChart = (props) => {
 		},
 		plotOptions: {
 			pie: {
-				cursor: 'pointer',
+				cursor: 'default',
 				dataLabels: {
 					enabled: true,
 					format: '<b>{point.name}</b>: {point.percentage:.1f} %'
@@ -357,7 +445,7 @@ export const PieChart = (props) => {
 		}
 	});
 
-	const category = "country";
+	const category = props.category;
 
 	useEffect(() => {
 		if (props.users.data) {
@@ -365,13 +453,14 @@ export const PieChart = (props) => {
 			const data = [];
 			for (let i = 0; i < props.users.data.length; i++) {
 				const item = props.users.data[i];
+
 				if (!categories.has(item[category])) {
 					categories.add(item[category]);
 					data.push({
 						name: item[category],
-						y: 1,
+						y: 1
 					});
-				} 
+				}
 				else {
 					for (let j = 0; j < data.length; j++) {
 						if (data[j].name === item[category]) {
@@ -383,14 +472,14 @@ export const PieChart = (props) => {
 			}
 			setChartOptions({
 				series: [{
-					data: data
+					data: data,
 				}]
 			});
 		}
-	}, [props.users]);
+	}, [props.users, props.category]);
 
 	return (
-		<div>
+		<div className="pieChart">
 			<HighchartsReact
 				highcharts={Highcharts}
 				options={chartOptions}

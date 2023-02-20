@@ -445,9 +445,8 @@ export const PieChart = (props) => {
 		}
 	});
 
-	const category = props.category;
-
 	useEffect(() => {
+		const category = props.category;
 		if (props.users.data) {
 			const categories = new Set();
 			const data = [];

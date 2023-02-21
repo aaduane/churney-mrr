@@ -1,19 +1,19 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { flushSync } from 'react-dom';
-import { readString } from 'react-papaparse';
-import Highcharts from 'highcharts/highstock';
-import HighchartsReact from 'highcharts-react-official';
-import ChurneyLogo from './churney.png';
-import './App.css';
+import { useState, useEffect, useRef, useCallback } from "react";
+import { flushSync } from "react-dom";
+import { readString } from "react-papaparse";
+import Highcharts from "highcharts/highstock";
+import HighchartsReact from "highcharts-react-official";
+import ChurneyLogo from "./churney.png";
+import "./App.css";
 
 // data
-import usersCSV from './data/users.csv';
-import paymentsCSV from './data/payments-sorted.csv';
+import usersCSV from "./data/users.csv";
+import paymentsCSV from "./data/payments-sorted.csv";
 
 // set global highcharts options
 Highcharts.setOptions({
 	lang: {
-		thousandsSep: ','
+		thousandsSep: ","
 	}
 });
 
@@ -29,7 +29,7 @@ export const App = () => {
 	const [filteredUsers, setFilteredUsers] = useState([]);
 	const [unitGrouping, setUnitGrouping] = useState("year");
 	const [categories, setCategories] = useState([]);
-	const [categoryFilter, setCategoryFilter] = useState(null);
+	//const [categoryFilter, setCategoryFilter] = useState(null);
 
 	// read CSV data into JSON object and set state
 	useEffect(() => {
@@ -59,13 +59,13 @@ export const App = () => {
 				setUsers({ data: json });
 			},
 			error: (error) => {
-				alert('Error while parsing CSV: ', error);
+				alert("Error while parsing CSV: ", error);
 			}
 		};
 
-		//console.time('Read Users CSV'); // debugging
+		//console.time("Read Users CSV"); // debugging
 		readString(usersCSV, usersConfig);
-		//console.timeEnd('Read Users CSV'); // debugging
+		//console.timeEnd("Read Users CSV"); // debugging
 
 		// read payments.csv, parse to json, and set state
 		const paymentsConfig = {
@@ -83,13 +83,13 @@ export const App = () => {
 				setPayments({ data: json });
 			},
 			error: (error) => {
-				alert('Error while parsing CSV: ', error);
+				alert("Error while parsing CSV: ", error);
 			}
 		};
 
-		// console.time('Read Payments CSV'); // debugging
+		// console.time("Read Payments CSV"); // debugging
 		readString(paymentsCSV, paymentsConfig);
-		// console.timeEnd('Read Payments CSV'); // debugging
+		// console.timeEnd("Read Payments CSV"); // debugging
 	}, []);
 
 	// copy data to filtered states for first load
@@ -105,7 +105,7 @@ export const App = () => {
 	useEffect(() => {
 
 		// FUTURE WORK: 
-		// loop through all users and make a 'Set' of those that have the 'categoryFilter'
+		// loop through all users and make a "Set" of those that have the "categoryFilter"
 		// when filtering payments, check if uid is in Set before filtering
 		// when filtering users, check if uid is in Set before filtering
 		// console.log(categoryFilter);
@@ -237,7 +237,7 @@ export const App = () => {
 						key={category}
 						users={filteredUsers}
 						category={category}
-						setCategoryFilter={setCategoryFilter}
+						//setCategoryFilter={setCategoryFilter}
 					/>
 				))}
 			</div>
@@ -257,7 +257,7 @@ export const MRRChart = (props) => {
 			text: "Monthly Recurring Revenue",
 		},
 		subtitle: {
-			text: "Click a data point to drilldown."
+			text: "(click a data point to filter)"
 		},
 		credits: {
 			enabled: false
@@ -273,22 +273,19 @@ export const MRRChart = (props) => {
 			},
 		},
 		yAxis: [{ // Primary yAxis
-			labels: {
-
-			},
 			title: {
-				text: 'Dollars ($)'
+				text: "Dollars ($)"
 			}
 		}, { // Secondary yAxis
 			title: {
-				text: 'Dollars ($)',
+				text: "Dollars ($)",
 				style: {
-					color: '#3498db',
+					color: "#3498db",
 				}
 			},
 			labels: {
 				style: {
-					color: '#3498db'
+					color: "#3498db"
 				}
 			},
 			opposite: true
@@ -296,8 +293,8 @@ export const MRRChart = (props) => {
 		tooltip: {
 			shared: true,
 			valueDecimals: 0,
-			valuePrefix: '$',
-			//valuePrefix: 'USD',
+			valuePrefix: "$",
+			//valuePrefix: "USD",
 		},
 		plotOptions: {
 			series: {
@@ -306,10 +303,15 @@ export const MRRChart = (props) => {
 				dataGrouping: {
 					enabled: true,
 					forced: true,
-					units: [['year', null]]
+					units: [["year", null]]
 				},
 			}
-		}
+		},
+		legend: {
+            itemStyle: {
+            	//"cursor": "pointer"
+            }
+        },
 	});
 
 	const handleSeriesClick = useCallback((event) => {
@@ -341,7 +343,7 @@ export const MRRChart = (props) => {
 	// update line chart when payments or user data changes 
 	useEffect(() => {
 
-		// console.time('Parse Time:'); // debugging
+		// console.time("Parse Time:"); // debugging
 
 		// organise data for highcharts api
 		const series = [];
@@ -365,31 +367,31 @@ export const MRRChart = (props) => {
 				difference.push([data.timestamp, differencePayment]);
 			}
 		}
-		// console.timeEnd('Parse Time:'); // debugging
+		// console.timeEnd("Parse Time:"); // debugging
 
 		// set state and update line chart
 		setChartOptions({
 			series: [{
 				name: "Original",
 				data: series,
-				type: 'column',
-				color: '#00000',
-				cursor: 'pointer'
+				type: "column",
+				color: "#00000",
+				cursor: "pointer"
 			},
 			{
 				name: "Churney",
 				data: churney,
-				type: 'column',
-				cursor: 'pointer',
-				color: '#9bfa91'
+				type: "column",
+				cursor: "pointer",
+				color: "#9bfa91"
 			},
 			{
 				name: "Increase",
 				data: difference,
-				type: 'spline',
-				cursor: 'pointer',
+				type: "spline",
+				cursor: "pointer",
 				yAxis: 1,
-				color: '#3498db',
+				color: "#3498db",
 				dataGrouping: {
 					approximation: "sum"
 				}
@@ -428,10 +430,10 @@ export const PieChart = (props) => {
 	const chartRef = useRef();
 	const [chartOptions, setChartOptions] = useState({
 		chart: {
-			type: 'pie',
+			type: "pie",
 		},
 		title: {
-			text: ''
+			text: ""
 		},
 		credits: {
 			enabled: false
@@ -440,16 +442,16 @@ export const PieChart = (props) => {
 			enabled: false
 		},
 		tooltip: {
-			pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>'
+			pointFormat: "{series.name}: <b>{point.percentage:.1f}%</b>"
 		},
 		plotOptions: {
 			pie: {
-				cursor: 'default',
-				size: '55%',
+				cursor: "default",
+				size: "55%",
 				showInLegend: true,
 				dataLabels: {
 					enabled: true,
-					format: '<b>{point.name}</b>: {point.percentage:.1f} %'
+					format: "<b>{point.name}</b>: {point.percentage:.1f} %"
 				}
 			},
 			series: {
@@ -460,9 +462,11 @@ export const PieChart = (props) => {
 		}
 	});
 
+	/*
 	const handleSeriesClick = useCallback((event) => {
 		props.setCategoryFilter(event.point.name);
 	}, [props]);
+	*/
 
 	// update pie charts when user data changes 
 	useEffect(() => {
@@ -494,17 +498,17 @@ export const PieChart = (props) => {
 
 			// fix product category order
 			if (category === "product_category") {
-				const sortAlphaNum = (a, b) => !!a.name ? a.name.localeCompare(b.name, 'en', { numeric: true }) : true;
+				const sortAlphaNum = (a, b) => !!a.name ? a.name.localeCompare(b.name, "en", { numeric: true }) : true;
 				seriesData.sort(sortAlphaNum);
 			}
 
 			// hide bad/error data and add custom colours
 			const cleanSeriesData = [];
 			const colors = {
-				"country" : ['#b62020', '#fe5757'], // red
-				"age_group" : ['#5C7A51', '#174207'], // green 
-				"product_category" : ['#8e7cc3', '#71639c', '#554a75', '#38314e', '#1c1827'], // purple
-				"subscription_frequency" : ['#e5c35b', '#b29747', '#7f6c33'] // yellow 
+				"country" : ["#b62020", "#fe5757"], // red
+				"age_group" : ["#5C7A51", "#174207"], // green 
+				"product_category" : ["#8e7cc3", "#71639c", "#554a75", "#38314e", "#1c1827"], // purple
+				"subscription_frequency" : ["#e5c35b", "#b29747", "#7f6c33"] // yellow 
 			}
 			for (let i = 0; i < seriesData.length; i++) {
 				const item = seriesData[i];	
@@ -534,15 +538,17 @@ export const PieChart = (props) => {
 					data: cleanSeriesData,
 					name: capitalisedCategory
 				}],
+				/*
 				plotOptions: {
 					series: {
 						events: {
 							click: function (e) {
-								//handleSeriesClick(e)
+								handleSeriesClick(e)
 							}
 						},
 					}
 				}
+				*/
 			});
 		}
 	}, [props.users, props.category]);

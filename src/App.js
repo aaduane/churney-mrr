@@ -29,6 +29,7 @@ export const App = () => {
 	const [filteredUsers, setFilteredUsers] = useState([]);
 	const [unitGrouping, setUnitGrouping] = useState("year");
 	const [categories, setCategories] = useState([]);
+	const [categoryFilter, setCategoryFilter] = useState(null);
 
 	// read CSV data into JSON object and set state
 	useEffect(() => {
@@ -102,6 +103,12 @@ export const App = () => {
 
 	// filter between start and end time for charts
 	useEffect(() => {
+
+		// FUTURE WORK: 
+		// loop through all users and make a 'Set' of those that have the 'categoryFilter'
+		// when filtering payments, check if uid is in Set before filtering
+		// when filtering users, check if uid is in Set before filtering
+		// console.log(categoryFilter);
 
 		if (rangeFilter.start !== 0 && rangeFilter.end !== 0) {
 
@@ -230,6 +237,7 @@ export const App = () => {
 						key={category}
 						users={filteredUsers}
 						category={category}
+						setCategoryFilter={setCategoryFilter}
 					/>
 				))}
 			</div>
@@ -452,6 +460,10 @@ export const PieChart = (props) => {
 		}
 	});
 
+	const handleSeriesClick = useCallback((event) => {
+		props.setCategoryFilter(event.point.name);
+	}, [props]);
+
 	// update pie charts when user data changes 
 	useEffect(() => {
 
@@ -521,7 +533,16 @@ export const PieChart = (props) => {
 				series: [{
 					data: cleanSeriesData,
 					name: capitalisedCategory
-				}]
+				}],
+				plotOptions: {
+					series: {
+						events: {
+							click: function (e) {
+								//handleSeriesClick(e)
+							}
+						},
+					}
+				}
 			});
 		}
 	}, [props.users, props.category]);

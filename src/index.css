@@ -3,11 +3,8 @@ html, body, #root {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    background-color: #fafafa;
 }
 .hide {
-    display: none;
-}
-
-.test {
-    color: red !important;
+    display: none !important;
 }

@@ -1,15 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { flushSync } from 'react-dom';
 import { readString } from 'react-papaparse';
 import Highcharts from 'highcharts/highstock';
 import HighchartsReact from 'highcharts-react-official';
+import ChurneyLogo from './churney.png';
 import './App.css';
 
 // data
 import usersCSV from './data/users.csv';
 import paymentsCSV from './data/payments-sorted.csv';
 
+// set global highcharts options
 Highcharts.setOptions({
-	//colors: ['#058DC7', '#50B432', '#ED561B', '#DDDF00', '#24CBE5', '#64E572', '#FF9655', '#FFF263', '#6AF9C4'],
 	lang: {
 		thousandsSep: ','
 	}
@@ -18,15 +20,20 @@ Highcharts.setOptions({
 /* ======================================= App ======================================= */
 export const App = () => {
 
+	// setup state variables
 	const [users, setUsers] = useState([]);
 	const [payments, setPayments] = useState([]);
 	const [dataLoaded, setDataLoaded] = useState(false)
 	const [rangeFilter, setRangeFilter] = useState({ start: 0, end: 0 });
 	const [filteredPayments, setFilteredPayments] = useState([]);
 	const [filteredUsers, setFilteredUsers] = useState([]);
+	const [unitGrouping, setUnitGrouping] = useState("year");
 	const [categories, setCategories] = useState([]);
 
-	const loadData = () => {
+	// read CSV data into JSON object and set state
+	useEffect(() => {
+		// set document title
+		document.title = "Churney Assignment";
 
 		// console.log("Data is being loaded!"); // debugging
 
@@ -82,15 +89,9 @@ export const App = () => {
 		// console.time('Read Payments CSV'); // debugging
 		readString(paymentsCSV, paymentsConfig);
 		// console.timeEnd('Read Payments CSV'); // debugging
-	}
-
-	// read CSV data into JSON object and set state
-	useEffect(() => {
-		document.title = "Churney Assignment";
-		loadData();
 	}, []);
 
-	// set dataLoaded state to true when data is fully loaded
+	// copy data to filtered states for first load
 	useEffect(() => {
 		if (users.data !== undefined && payments.data !== undefined) {
 			setFilteredPayments(payments);
@@ -101,10 +102,11 @@ export const App = () => {
 
 	// filter between start and end time for charts
 	useEffect(() => {
+
 		if (rangeFilter.start !== 0 && rangeFilter.end !== 0) {
 
-			// console.log("FILTER S: " + new Date(rangeFilter.start).toUTCString()); // debugging
-			// console.log("FILTER E: " + new Date(rangeFilter.end).toUTCString()); // debugging
+			//console.log("START: " + new Date(rangeFilter.start).toUTCString()); // debugging
+			//console.log("  END: " + new Date(rangeFilter.end).toUTCString()); // debugging
 
 			// filter payments by start and end time
 			const filteredUsersIndex = new Set();
@@ -128,29 +130,52 @@ export const App = () => {
 				}
 			}
 
+			// detect unit grouping
+			const firstDate = new Date(filteredPayments.data[0].timestamp);
+			const lastDate = new Date(filteredPayments.data[filteredPayments.data.length - 1].timestamp);
+			const firstTimestampYear = firstDate.getUTCFullYear();
+			const lastTimestampYear = lastDate.getUTCFullYear();
+			const firstTimestampMonth = firstDate.getUTCMonth();
+			const lastTimestampMonth = lastDate.getUTCMonth();
+			if (firstTimestampYear === lastTimestampYear && firstTimestampMonth === lastTimestampMonth) {
+				setUnitGrouping("day");
+			}
+			else if (firstTimestampYear === lastTimestampYear) {
+				setUnitGrouping("month");
+			}
+			else {
+				setUnitGrouping("year");
+			}
+
 			// set new states
 			setFilteredUsers(filteredUsers);
-			setFilteredPayments(filteredPayments); // need to sort payments by timestamp before setting ? 
+			setFilteredPayments(filteredPayments); 
+			setDataLoaded(true);
 		}
 	}, [rangeFilter, payments, users]);
 
-	// roll up after a drilldown 
-	const rollUp = () => {
-		if (rangeFilter.start !== 0 && rangeFilter.end !== 0) {
+	// handle drillup functionality
+	const drillUp = () => {
+		flushSync(() => {
+			setDataLoaded(false);
+		})
+		if (unitGrouping === "month") {	
+			setFilteredUsers(users);
+			setFilteredPayments(payments);
+			setUnitGrouping("year");
+		}
+		if (unitGrouping === "day") {
+			const date = new Date(rangeFilter.start);
+			const year = date.getUTCFullYear();
 
-			const startMonth = new Date(rangeFilter.start).getUTCMonth();
-			const endMonth = new Date(rangeFilter.end).getUTCMonth();
-
-			if (startMonth === endMonth) {
-
-				const year = new Date(rangeFilter.start).getUTCFullYear();
+			if (year === 2023) {
+				setFilteredUsers(users);
+				setFilteredPayments(payments);
+				setUnitGrouping("year");
+			}
+			else {
 				const start = Date.UTC(year, 0, 1);
 				const end = Date.UTC(year, 11, 31, 23, 59, 59);
-
-				console.log(new Date(start).toUTCString());
-				console.log(new Date(end).toUTCString());
-
-
 				const filteredUsersIndex = new Set();
 				const filteredPayments = [];
 				filteredPayments.data = [];
@@ -161,7 +186,7 @@ export const App = () => {
 						filteredUsersIndex.add(payment.uid);
 					}
 				}
-
+	
 				// filter payments by start and end time
 				const filteredUsers = [];
 				filteredUsers.data = [];
@@ -171,36 +196,34 @@ export const App = () => {
 						filteredUsers.data.push(user);
 					}
 				}
-
+	
 				setFilteredUsers(filteredUsers);
 				setFilteredPayments(filteredPayments);
-				setRangeFilter({ start: start, end: end });
-			}
-			else {
-				setFilteredUsers(users);
-				setFilteredPayments(payments);
-			}
+				setUnitGrouping("month");	
+			}			
 		}
+		setDataLoaded(true);
 	}
 
 	return (
 		<div id="appWrapper">
-
-			<div>
-				{dataLoaded ? null : "Loading data..."}
+			<div id="loading" className={dataLoaded ? "hide" : null}>
+				<div id="loadingIndicator" style={{backgroundImage: `url(${ChurneyLogo})`}}></div>		
 			</div>
-
-			<div>
-				<button onClick={() => rollUp()}>BACK</button>
+			<div 
+				className={unitGrouping === "year" ? "hide" : null}
+				id="drillUpBtnWrapper"
+			>
+				<button onClick={() => drillUp()}>▲ back to {unitGrouping === "month" ? "years" : "months"}</button>
 			</div>
-
 			<div id="mmrWrapper">
 				<MRRChart
 					payments={filteredPayments}
+					unitGrouping={unitGrouping}
 					setRangeFilter={setRangeFilter}
+					setDataLoaded={setDataLoaded}
 				/>
 			</div>
-
 			<div id="pieChartsWrapper">
 				{categories.map(category => (
 					<PieChart
@@ -216,12 +239,11 @@ export const App = () => {
 
 /* ======================================= MRRChart ======================================= */
 export const MRRChart = (props) => {
-
+	// set up states
 	const chartRef = useRef();
-
 	const [chartOptions, setChartOptions] = useState({
 		chart: {
-			height: 600
+			height: 500
 		},
 		title: {
 			text: "Monthly Recurring Revenue",
@@ -282,19 +304,24 @@ export const MRRChart = (props) => {
 		}
 	});
 
-	const handleSeriesClick = useCallback((event, unitGrouping) => {
-		if (unitGrouping !== "day") {
+	const handleSeriesClick = useCallback((event) => {
+		if (props.unitGrouping !== "day") {
+
+			flushSync(() => {
+				props.setDataLoaded(false);
+			})
+
 			const year = new Date(event.point.category).getUTCFullYear();
 			const month = new Date(event.point.category).getUTCMonth();
 
 			let start;
 			let end;
-			if (unitGrouping === "year") {
+			if (props.unitGrouping === "year") {
 				start = Date.UTC(year, 0, 1);
 				end = Date.UTC(year, 11, 31, 23, 59, 59);
 			}
 
-			if (unitGrouping === "month") {
+			if (props.unitGrouping === "month") {
 				start = Date.UTC(year, month, 1);
 				end = Date.UTC(year, month + 1, 0, 23, 59, 59);
 			}
@@ -303,9 +330,12 @@ export const MRRChart = (props) => {
 		}
 	}, [props]);
 
+	// update line chart when payments or user data changes 
 	useEffect(() => {
 
 		// console.time('Parse Time:'); // debugging
+
+		// organise data for highcharts api
 		const series = [];
 		const churney = [];
 		const difference = [];
@@ -329,21 +359,7 @@ export const MRRChart = (props) => {
 		}
 		// console.timeEnd('Parse Time:'); // debugging
 
-		// detect unit for data grouping
-		let unitGrouping = "year";
-		if (series[0] !== undefined) {
-			const firstTimestampYear = new Date(series[0][0]).getUTCFullYear();
-			const lastTimestampYear = new Date(series[series.length - 1][0]).getUTCFullYear();
-			if (firstTimestampYear === lastTimestampYear) {
-				unitGrouping = "month";
-				const firstTimestampMonth = new Date(series[0][0]).getUTCMonth();
-				const lastTimestampMonth = new Date(series[series.length - 1][0]).getUTCMonth();
-				if (firstTimestampMonth === lastTimestampMonth) {
-					unitGrouping = "day";
-				}
-			}
-		}
-
+		// set state and update line chart
 		setChartOptions({
 			series: [{
 				name: "Original",
@@ -374,29 +390,20 @@ export const MRRChart = (props) => {
 				series: {
 					events: {
 						click: function (e) {
-							handleSeriesClick(e, unitGrouping)
+							handleSeriesClick(e, props.unitGrouping)
 						}
 					},
 					dataGrouping: {
-						units: [[unitGrouping, null]],
+						units: [[props.unitGrouping, null]],
 						forced: true
 					}
 				}
 			}
 		});
 
-	}, [props.payments, handleSeriesClick]);
-
-
-	/*
-	let toShow = false;
-	if (chartOptions.series[0].data !== undefined) {
-		toShow = true;
-	}
-	*/
+	}, [props.payments, props.unitGrouping, handleSeriesClick]);
 
 	return (
-		// className={toShow ? null : "hide"}
 		<div className="mmrChart">
 			<HighchartsReact
 				highcharts={Highcharts}
@@ -405,13 +412,11 @@ export const MRRChart = (props) => {
 			/>
 		</div>
 	);
-
-
 }
 
 /* ======================================= PieChart ======================================= */
 export const PieChart = (props) => {
-
+	// set up states
 	const chartRef = useRef();
 	const [chartOptions, setChartOptions] = useState({
 		chart: {
@@ -432,6 +437,8 @@ export const PieChart = (props) => {
 		plotOptions: {
 			pie: {
 				cursor: 'default',
+				size: '55%',
+				showInLegend: true,
 				dataLabels: {
 					enabled: true,
 					format: '<b>{point.name}</b>: {point.percentage:.1f} %'
@@ -445,33 +452,75 @@ export const PieChart = (props) => {
 		}
 	});
 
+	// update pie charts when user data changes 
 	useEffect(() => {
+
+		// organise data for highcharts api
 		const category = props.category;
 		if (props.users.data) {
 			const categories = new Set();
-			const data = [];
+			const seriesData = [];
 			for (let i = 0; i < props.users.data.length; i++) {
 				const item = props.users.data[i];
-
-				if (!categories.has(item[category])) {
-					categories.add(item[category]);
-					data.push({
-						name: item[category],
+				const categoryOption = item[category];
+				if (!categories.has(categoryOption)) {
+					categories.add(categoryOption);
+					seriesData.push({
+						name: categoryOption,
 						y: 1
 					});
 				}
 				else {
-					for (let j = 0; j < data.length; j++) {
-						if (data[j].name === item[category]) {
-							data[j].y++;
+					for (let j = 0; j < seriesData.length; j++) {
+						if (seriesData[j].name === categoryOption) {
+							seriesData[j].y++;
 							break;
 						}
 					}
 				}
 			}
+
+			// fix product category order
+			if (category === "product_category") {
+				const sortAlphaNum = (a, b) => !!a.name ? a.name.localeCompare(b.name, 'en', { numeric: true }) : true;
+				seriesData.sort(sortAlphaNum);
+			}
+
+			// hide bad/error data and add custom colours
+			const cleanSeriesData = [];
+			const colors = {
+				"country" : ['#b62020', '#fe5757'], // red
+				"age_group" : ['#5C7A51', '#174207'], // green 
+				"product_category" : ['#8e7cc3', '#71639c', '#554a75', '#38314e', '#1c1827'], // purple
+				"subscription_frequency" : ['#e5c35b', '#b29747', '#7f6c33'] // yellow 
+			}
+			for (let i = 0; i < seriesData.length; i++) {
+				const item = seriesData[i];	
+				if (item.y > 1 && item.name !== "") {
+					let index = cleanSeriesData.length;	
+					cleanSeriesData.push({
+						name: item.name,
+						y: item.y,
+						color: colors[category][index]
+					});
+				}
+			}
+
+			// format category for titles
+			let capitalisedCategory = category.replace("_", " ").split(" ");
+			for (let i = 0; i < capitalisedCategory.length; i++) {
+				capitalisedCategory[i] = capitalisedCategory[i][0].toUpperCase() + capitalisedCategory[i].substr(1);
+			}
+			capitalisedCategory = capitalisedCategory.join(" ");			
+			 
+			// set state to update pie charts
 			setChartOptions({
+				title: {
+					text: capitalisedCategory
+				},
 				series: [{
-					data: data,
+					data: cleanSeriesData,
+					name: capitalisedCategory
 				}]
 			});
 		}
@@ -486,5 +535,4 @@ export const PieChart = (props) => {
 			/>
 		</div>
 	);
-
 }

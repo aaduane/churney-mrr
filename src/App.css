@@ -3,7 +3,57 @@
     width: 90%;
     margin: 0 auto 0 auto;
     padding: 0;
-    background-color: #fafafa;
+}
+#loading {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.75);
+    z-index: 999;
+    box-sizing: border-box;
+}
+#loadingIndicator {
+    box-sizing: border-box;
+    width: 100X;
+    height: 100%;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-position: center;
+    background-size: 100px 100px;
+    animation: fadeInOut 1s linear 10 forwards;
+}
+@keyframes fadeInOut {
+    0% {
+      opacity: 0;
+    }
+    50% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+#drillUpBtnWrapper {
+    position: absolute;
+    top: 43px;
+    left: 200px;
+    z-index: 99;
+}
+#drillUpBtnWrapper button {
+    width: 125px;
+    height: 25px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+    background-color: white;
+    border: 1px solid #6e6e6e;
+    filter: drop-shadow(0px 1px 1px rgba(0,0,0,0.3));
+    font-family: "Lucida Grande", "Lucida Sans Unicode", Arial, Helvetica, sans-serif;
+}
+#drillUpBtnWrapper button:hover {
+    filter: brightness(0.95);
 }
 
 /******* LINE *******/
@@ -13,7 +63,10 @@
     box-sizing: border-box;
     margin: 20px auto 20px auto;
     background-color: white;
-    box-shadow: 0px 3px 3px lightgrey;
+    filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.3));
+    padding-right: 10px;
+
+    padding: 10px 10px 0 0;
 }
 
 /******* PIE *******/
@@ -23,7 +76,8 @@
     text-align: center;
     background-color: white;
     border: 1px solid lightgrey;
-    box-shadow: 0px 3px 3px lightgrey; 
+    filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.3));
+    padding: 10px 0 0 0;
 }
 .pieChart {
     width: 25%;

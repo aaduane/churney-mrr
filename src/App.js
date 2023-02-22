@@ -163,14 +163,19 @@ export const App = () => {
 
 	// handle drillup functionality
 	const drillUp = () => {
+		// force loading indicator render
 		flushSync(() => {
 			setDataLoaded(false);
 		})
+
+		// if in month view, just render all data again for years
 		if (unitGrouping === "month") {	
 			setFilteredUsers(users);
 			setFilteredPayments(payments);
 			setUnitGrouping("year");
 		}
+
+		// if in day view, need to filter out just the months of that year
 		if (unitGrouping === "day") {
 			const date = new Date(rangeFilter.start);
 			const year = date.getUTCFullYear();
@@ -209,18 +214,18 @@ export const App = () => {
 				setUnitGrouping("month");	
 			}			
 		}
+
+		// remove loading indicator again
 		setDataLoaded(true);
 	}
 
+	// render DOM
 	return (
 		<div id="appWrapper">
 			<div id="loading" className={dataLoaded ? "hide" : null}>
 				<div id="loadingIndicator" style={{backgroundImage: `url(${ChurneyLogo})`}}></div>		
 			</div>
-			<div 
-				className={unitGrouping === "year" ? "hide" : null}
-				id="drillUpBtnWrapper"
-			>
+			<div className={unitGrouping === "year" ? "hide" : null} id="drillUpBtnWrapper">
 				<button onClick={() => drillUp()}>▲ back to {unitGrouping === "month" ? "years" : "months"}</button>
 			</div>
 			<div id="mmrWrapper">
@@ -314,6 +319,7 @@ export const MRRChart = (props) => {
         },
 	});
 
+	// handle drilldown functionality
 	const handleSeriesClick = useCallback((event) => {
 		if (props.unitGrouping !== "day") {
 
@@ -369,6 +375,12 @@ export const MRRChart = (props) => {
 		}
 		// console.timeEnd("Parse Time:"); // debugging
 
+		// set series hover cursor for chart
+		let cursor = "pointer"
+		if (props.unitGrouping === "day") {
+			cursor = "default"
+		}
+
 		// set state and update line chart
 		setChartOptions({
 			series: [{
@@ -376,20 +388,20 @@ export const MRRChart = (props) => {
 				data: series,
 				type: "column",
 				color: "#00000",
-				cursor: "pointer"
+				cursor: cursor
 			},
 			{
 				name: "Churney",
 				data: churney,
-				type: "column",
-				cursor: "pointer",
-				color: "#9bfa91"
+				type: "column",			
+				color: "#9bfa91",
+				cursor: cursor
 			},
 			{
 				name: "Increase",
 				data: difference,
 				type: "spline",
-				cursor: "pointer",
+				cursor: cursor,
 				yAxis: 1,
 				color: "#3498db",
 				dataGrouping: {
@@ -413,6 +425,7 @@ export const MRRChart = (props) => {
 
 	}, [props.payments, props.unitGrouping, handleSeriesClick]);
 
+	// render DOM
 	return (
 		<div className="mmrChart">
 			<HighchartsReact
@@ -442,7 +455,7 @@ export const PieChart = (props) => {
 			enabled: false
 		},
 		tooltip: {
-			pointFormat: "{series.name}: <b>{point.percentage:.1f}%</b>"
+			pointFormat: "<b>{point.percentage:.1f}%<br />({point.y})</b>"
 		},
 		plotOptions: {
 			pie: {
@@ -553,6 +566,7 @@ export const PieChart = (props) => {
 		}
 	}, [props.users, props.category]);
 
+	// render DOM
 	return (
 		<div className="pieChart">
 			<HighchartsReact

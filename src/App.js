@@ -6,6 +6,8 @@ import HighchartsReact from "highcharts-react-official";
 import ChurneyLogo from "./churney.png";
 import "./App.css";
 
+//import { readCSV } from "./data.js"; // testing
+
 // data
 import usersCSV from "./data/users.csv";
 import paymentsCSV from "./data/payments-sorted.csv";
@@ -31,8 +33,13 @@ export const App = () => {
 	const [categories, setCategories] = useState([]);
 	//const [categoryFilter, setCategoryFilter] = useState(null);
 
+	
+
 	// read CSV data into JSON object and set state
 	useEffect(() => {
+
+		//readCSV(); // testing
+
 		// set document title
 		document.title = "Churney Assignment";
 

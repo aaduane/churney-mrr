@@ -33,8 +33,6 @@ export const App = () => {
 	const [categories, setCategories] = useState([]);
 	//const [categoryFilter, setCategoryFilter] = useState(null);
 
-	
-
 	// read CSV data into JSON object and set state
 	useEffect(() => {
 
